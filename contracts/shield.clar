@@ -16,6 +16,10 @@
     (
       (new-id (+ (var-get ip-counter) u1))
     )
+    ;; Perform input validation
+    (asserts! (is-eq (len ip-hash) u32) (err u400)) ;; Ensure the hash is exactly 32 bytes
+    (asserts! (not (is-eq ip-hash 0x0000000000000000000000000000000000000000000000000000000000000000)) (err u401)) ;; Ensure the hash is not all zeros
+    
     (map-set ip-registrations
       { ip-id: new-id }
       { owner: tx-sender, timestamp: block-height, hash: ip-hash }
