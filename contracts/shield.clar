@@ -1,3 +1,14 @@
+;; Smart Contract on Intellectual Property Protection
+
+;; Define error codes
+(define-constant ERR-NOT-AUTHORIZED (err u1000))
+(define-constant ERR-INVALID-HASH-LENGTH (err u1001))
+(define-constant ERR-HASH-ALL-ZEROS (err u1002))
+(define-constant ERR-HASH-ALREADY-REGISTERED (err u1003))
+(define-constant ERR-IP-NOT-FOUND (err u1004))
+(define-constant ERR-INVALID-IP-ID (err u1005))
+(define-constant ERR-IP-ID-OUT-OF-RANGE (err u1006))
+
 ;; Define the contract
 (define-data-var owner principal tx-sender)
 
@@ -23,9 +34,9 @@
       (new-id (+ (var-get ip-counter) u1))
     )
     ;; Perform input validation
-    (asserts! (is-eq (len ip-hash) u32) (err u400)) ;; Ensure the hash is exactly 32 bytes
-    (asserts! (not (is-eq ip-hash 0x0000000000000000000000000000000000000000000000000000000000000000)) (err u401)) ;; Ensure the hash is not all zeros
-    (asserts! (is-none (map-get? registered-hashes { hash: ip-hash })) (err u402)) ;; Ensure the hash hasn't been registered before
+    (asserts! (is-eq (len ip-hash) u32) ERR-INVALID-HASH-LENGTH)
+    (asserts! (not (is-eq ip-hash 0x0000000000000000000000000000000000000000000000000000000000000000)) ERR-HASH-ALL-ZEROS)
+    (asserts! (is-none (map-get? registered-hashes { hash: ip-hash })) ERR-HASH-ALREADY-REGISTERED)
     
     ;; Register the IP
     (map-set ip-registrations
@@ -50,7 +61,7 @@
     )
     (if (is-some ip-data)
       (ok (get owner (unwrap-panic ip-data)))
-      (err u404)
+      ERR-IP-NOT-FOUND
     )
   )
 )
@@ -63,7 +74,7 @@
     )
     (if (is-some ip-data)
       (ok (is-eq (get hash (unwrap-panic ip-data)) hash-to-verify))
-      (err u404)
+      ERR-IP-NOT-FOUND
     )
   )
 )
@@ -75,19 +86,19 @@
       (current-ip-counter (var-get ip-counter))
     )
     ;; Perform input validation
-    (asserts! (<= ip-id current-ip-counter) (err u405)) ;; Ensure the ip-id is not greater than the current counter
-    (asserts! (> ip-id u0) (err u406)) ;; Ensure the ip-id is greater than 0
+    (asserts! (<= ip-id current-ip-counter) ERR-IP-ID-OUT-OF-RANGE)
+    (asserts! (> ip-id u0) ERR-INVALID-IP-ID)
     
     (let
       (
         (ip-data (map-get? ip-registrations { ip-id: ip-id }))
       )
-      (asserts! (is-some ip-data) (err u404)) ;; Ensure the IP exists
+      (asserts! (is-some ip-data) ERR-IP-NOT-FOUND)
       (let
         (
           (unwrapped-ip-data (unwrap-panic ip-data))
         )
-        (asserts! (is-eq tx-sender (get owner unwrapped-ip-data)) (err u403)) ;; Ensure the sender is the current owner
+        (asserts! (is-eq tx-sender (get owner unwrapped-ip-data)) ERR-NOT-AUTHORIZED)
         (map-set ip-registrations
           { ip-id: ip-id }
           (merge unwrapped-ip-data { owner: new-owner })
