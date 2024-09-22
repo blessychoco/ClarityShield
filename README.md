@@ -1,6 +1,6 @@
 # Intellectual Property Protection Smart Contract
 
-This project implements a smart contract for intellectual property (IP) protection using Clarity, the smart contract language for the Stacks blockchain. The contract allows users to register, verify, transfer ownership, and set expirations for intellectual property.
+This project implements a smart contract for intellectual property (IP) protection using Clarity, the smart contract language for the Stacks blockchain. The contract allows users to register, verify, transfer ownership, set expirations, and verify ownership for intellectual property.
 
 ## Features
 
@@ -10,6 +10,7 @@ This project implements a smart contract for intellectual property (IP) protecti
 * Transfer ownership of registered intellectual property
 * Extend the registration period of intellectual property
 * Automatic expiration of IP registrations
+* Verify the current owner of a specific IP ID (new feature)
 
 ## Smart Contract Overview
 
@@ -28,6 +29,8 @@ The main components of the smart contract are:
    * `transfer-ip`: Transfer ownership of an IP to another address
    * `extend-ip-registration`: Extend the registration period of an IP
    * `is-hash-registered`: Check if a hash is already registered
+   * `update-ip-metadata`: Update the hash of an existing IP registration
+   * `verify-ip-owner`: Verify the current owner of a specific IP ID (new function)
 
 ## Usage
 
@@ -89,6 +92,27 @@ To extend the registration period of an IP:
 ```
 
 Replace `u1` with the IP ID and provide the new expiration block height.
+
+### Updating IP Metadata
+
+To update the hash of an existing IP registration:
+
+```lisp
+(contract-call? .ip-protection-contract update-ip-metadata u1
+    0x9876543210fedcba9876543210fedcba9876543210fedcba9876543210fedcba)
+```
+
+Replace `u1` with the IP ID and provide the new hash.
+
+### Verifying IP Owner
+
+To verify the current owner of a specific IP ID:
+
+```lisp
+(contract-call? .ip-protection-contract verify-ip-owner u1)
+```
+
+Replace `u1` with the IP ID you want to verify. This function returns the current owner and expiration date (if set) for the specified IP ID.
 
 ## Development
 

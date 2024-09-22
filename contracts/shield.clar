@@ -1,4 +1,4 @@
-;; Smart Contract on Intellectual Property Protection with Expiration Date, Corrected Safety Checks, and IP Update Functionality
+;; Smart Contract on Intellectual Property Protection with Expiration Date, Corrected Safety Checks, IP Update Functionality, and Owner Verification
 ;; Define error codes
 (define-constant ERR-NOT-AUTHORIZED (err u1000))
 (define-constant ERR-INVALID-HASH-LENGTH (err u1001))
@@ -185,7 +185,7 @@
   )
 )
 
-;; New function to update IP metadata (hash)
+;; Function to update IP metadata (hash)
 (define-public (update-ip-metadata (ip-id uint) (new-hash (buff 32)))
   (let
     (
@@ -229,6 +229,40 @@
           { ip-id: ip-id }
         )
         (ok true)
+      )
+    )
+  )
+)
+
+;; New function to verify the current owner of a specific IP ID
+(define-read-only (verify-ip-owner (ip-id uint))
+  (let
+    (
+      (current-ip-counter (var-get ip-counter))
+    )
+    ;; Perform input validation
+    (asserts! (<= ip-id current-ip-counter) ERR-IP-ID-OUT-OF-RANGE)
+    (asserts! (> ip-id u0) ERR-INVALID-IP-ID)
+    
+    (let
+      (
+        (ip-data (map-get? ip-registrations { ip-id: ip-id }))
+      )
+      (if (is-some ip-data)
+        (let
+          (
+            (unwrapped-ip-data (unwrap-panic ip-data))
+            (current-block block-height)
+          )
+          (if (and
+                (is-some (get expiration unwrapped-ip-data))
+                (>= current-block (unwrap-panic (get expiration unwrapped-ip-data)))
+              )
+            ERR-IP-EXPIRED
+            (ok { owner: (get owner unwrapped-ip-data), expiration: (get expiration unwrapped-ip-data) })
+          )
+        )
+        ERR-IP-NOT-FOUND
       )
     )
   )
