@@ -1,4 +1,4 @@
-;; Smart Contract on Intellectual Property Protection with Expiration Date and Corrected Safety Checks
+;; Smart Contract on Intellectual Property Protection with Expiration Date, Corrected Safety Checks, and IP Update Functionality
 ;; Define error codes
 (define-constant ERR-NOT-AUTHORIZED (err u1000))
 (define-constant ERR-INVALID-HASH-LENGTH (err u1001))
@@ -178,6 +178,55 @@
         (map-set ip-registrations
           { ip-id: ip-id }
           (merge unwrapped-ip-data { expiration: (some new-expiration) })
+        )
+        (ok true)
+      )
+    )
+  )
+)
+
+;; New function to update IP metadata (hash)
+(define-public (update-ip-metadata (ip-id uint) (new-hash (buff 32)))
+  (let
+    (
+      (current-ip-counter (var-get ip-counter))
+    )
+    ;; Perform input validation
+    (asserts! (<= ip-id current-ip-counter) ERR-IP-ID-OUT-OF-RANGE)
+    (asserts! (> ip-id u0) ERR-INVALID-IP-ID)
+    (asserts! (is-eq (len new-hash) u32) ERR-INVALID-HASH-LENGTH)
+    (asserts! (not (is-eq new-hash 0x0000000000000000000000000000000000000000000000000000000000000000)) ERR-HASH-ALL-ZEROS)
+    
+    (let
+      (
+        (ip-data (map-get? ip-registrations { ip-id: ip-id }))
+      )
+      (asserts! (is-some ip-data) ERR-IP-NOT-FOUND)
+      (let
+        (
+          (unwrapped-ip-data (unwrap-panic ip-data))
+          (current-block block-height)
+        )
+        ;; Check if the caller is the current owner
+        (asserts! (is-eq tx-sender (get owner unwrapped-ip-data)) ERR-NOT-AUTHORIZED)
+        ;; Check if the IP has not expired
+        (asserts! (or
+                    (is-none (get expiration unwrapped-ip-data))
+                    (< current-block (unwrap-panic (get expiration unwrapped-ip-data)))
+                  )
+                  ERR-IP-EXPIRED
+        )
+        ;; Remove the old hash from registered-hashes
+        (map-delete registered-hashes { hash: (get hash unwrapped-ip-data) })
+        ;; Update the IP registration with the new hash
+        (map-set ip-registrations
+          { ip-id: ip-id }
+          (merge unwrapped-ip-data { hash: new-hash })
+        )
+        ;; Add the new hash to registered-hashes
+        (map-set registered-hashes
+          { hash: new-hash }
+          { ip-id: ip-id }
         )
         (ok true)
       )
