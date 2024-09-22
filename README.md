@@ -1,28 +1,36 @@
 # Intellectual Property Protection Smart Contract
 
-This project implements a smart contract for intellectual property (IP) protection using Clarity, the smart contract language for the Stacks blockchain. The contract allows users to register, verify, and transfer ownership of intellectual property.
+This project implements a smart contract for intellectual property (IP) protection using Clarity, the smart contract language for the Stacks blockchain. The contract allows users to register, verify, transfer ownership, set expirations, and verify ownership for intellectual property.
 
 ## Features
 
-- Register new intellectual property by providing a hash of the work
-- Check ownership of registered intellectual property
-- Verify the hash of registered intellectual property
-- Transfer ownership of registered intellectual property
+* Register new intellectual property by providing a hash of the work and an optional expiration date
+* Check ownership of registered intellectual property
+* Verify the hash of registered intellectual property
+* Transfer ownership of registered intellectual property
+* Extend the registration period of intellectual property
+* Automatic expiration of IP registrations
+* Verify the current owner of a specific IP ID (new feature)
 
 ## Smart Contract Overview
 
 The main components of the smart contract are:
 
 1. **Data Storage**
-   - `owner`: Stores the contract owner's principal (address)
-   - `ip-registrations`: A map that stores IP registrations, indexed by an IP ID
-   - `ip-counter`: A counter to generate unique IP IDs
+   * `owner`: Stores the contract owner's principal (address)
+   * `ip-registrations`: A map that stores IP registrations, indexed by an IP ID
+   * `registered-hashes`: A map that tracks registered hashes to prevent duplicates
+   * `ip-counter`: A counter to generate unique IP IDs
 
 2. **Main Functions**
-   - `register-ip`: Register new IP by providing a hash of the work
-   - `check-ip-ownership`: Check the ownership of a registered IP
-   - `verify-ip-hash`: Verify an IP hash against the registered hash
-   - `transfer-ip`: Transfer ownership of an IP to another address
+   * `register-ip`: Register new IP by providing a hash of the work and an optional expiration date
+   * `check-ip-ownership`: Check the ownership of a registered IP
+   * `verify-ip-hash`: Verify an IP hash against the registered hash
+   * `transfer-ip`: Transfer ownership of an IP to another address
+   * `extend-ip-registration`: Extend the registration period of an IP
+   * `is-hash-registered`: Check if a hash is already registered
+   * `update-ip-metadata`: Update the hash of an existing IP registration
+   * `verify-ip-owner`: Verify the current owner of a specific IP ID (new function)
 
 ## Usage
 
@@ -35,17 +43,19 @@ To use this smart contract, you need to:
 
 To register new intellectual property:
 
-```clarity
-(contract-call? .ip-protection-contract register-ip 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef)
+```lisp
+(contract-call? .ip-protection-contract register-ip 
+    0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef 
+    (some u144000))
 ```
 
-This will return the new IP ID.
+This will register the IP with the given hash and set an expiration 144000 blocks in the future. Omit the second argument or use `none` to register without an expiration date.
 
 ### Checking IP Ownership
 
 To check the ownership of a registered IP:
 
-```clarity
+```lisp
 (contract-call? .ip-protection-contract check-ip-ownership u1)
 ```
 
@@ -55,8 +65,9 @@ Replace `u1` with the IP ID you want to check.
 
 To verify the hash of a registered IP:
 
-```clarity
-(contract-call? .ip-protection-contract verify-ip-hash u1 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef)
+```lisp
+(contract-call? .ip-protection-contract verify-ip-hash u1 
+    0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef)
 ```
 
 Replace `u1` with the IP ID and provide the hash you want to verify.
@@ -65,11 +76,43 @@ Replace `u1` with the IP ID and provide the hash you want to verify.
 
 To transfer ownership of an IP:
 
-```clarity
-(contract-call? .ip-protection-contract transfer-ip u1 'SP2J6ZY48GV1EZ5V2V5RB9MP66SW86PYKKNRV9EJ7)
+```lisp
+(contract-call? .ip-protection-contract transfer-ip u1 
+    'SP2J6ZY48GV1EZ5V2V5RB9MP66SW86PYKKNRV9EJ7)
 ```
 
 Replace `u1` with the IP ID and provide the principal of the new owner.
+
+### Extending IP Registration
+
+To extend the registration period of an IP:
+
+```lisp
+(contract-call? .ip-protection-contract extend-ip-registration u1 u288000)
+```
+
+Replace `u1` with the IP ID and provide the new expiration block height.
+
+### Updating IP Metadata
+
+To update the hash of an existing IP registration:
+
+```lisp
+(contract-call? .ip-protection-contract update-ip-metadata u1
+    0x9876543210fedcba9876543210fedcba9876543210fedcba9876543210fedcba)
+```
+
+Replace `u1` with the IP ID and provide the new hash.
+
+### Verifying IP Owner
+
+To verify the current owner of a specific IP ID:
+
+```lisp
+(contract-call? .ip-protection-contract verify-ip-owner u1)
+```
+
+Replace `u1` with the IP ID you want to verify. This function returns the current owner and expiration date (if set) for the specified IP ID.
 
 ## Development
 
@@ -79,6 +122,16 @@ To further develop or modify this smart contract:
 2. Make changes to the contract code
 3. Test thoroughly using Clarity testing frameworks
 4. Deploy the updated contract to the Stacks blockchain
+
+## Safety Features
+
+The contract includes several safety checks:
+
+* Validation of IP hash length and content
+* Prevention of duplicate hash registrations
+* Expiration date checks to ensure they are set in the future
+* Ownership checks for transfers and registration extensions
+* Input validation for IP IDs to ensure they are within valid range
 
 ## Author
 
