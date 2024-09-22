@@ -1,4 +1,4 @@
-;; Smart Contract on Intellectual Property Protection with Expiration Date, Corrected Safety Checks, IP Update Functionality, and Owner Verification
+;; Smart Contract on Intellectual Property Protection with Expiration Date, Corrected Safety Checks, IP Update Functionality, Owner Verification, and Optimized Expiration Extension
 ;; Define error codes
 (define-constant ERR-NOT-AUTHORIZED (err u1000))
 (define-constant ERR-INVALID-HASH-LENGTH (err u1001))
@@ -9,6 +9,7 @@
 (define-constant ERR-IP-ID-OUT-OF-RANGE (err u1006))
 (define-constant ERR-IP-EXPIRED (err u1007))
 (define-constant ERR-INVALID-EXPIRATION (err u1008))
+(define-constant ERR-NO-EXPIRATION-SET (err u1009))
 
 ;; Define the contract
 (define-data-var owner principal tx-sender)
@@ -153,7 +154,9 @@
   (is-some (map-get? registered-hashes { hash: ip-hash }))
 )
 
-;; Function to extend IP registration
+;; Smart Contract on Intellectual Property Protection with Expiration Date, Corrected Safety Checks, IP Update Functionality, Owner Verification, and Corrected Expiration Extension
+
+;; function to extend IP registration
 (define-public (extend-ip-registration (ip-id uint) (new-expiration uint))
   (let
     (
@@ -164,7 +167,7 @@
     (asserts! (<= ip-id current-ip-counter) ERR-IP-ID-OUT-OF-RANGE)
     (asserts! (> ip-id u0) ERR-INVALID-IP-ID)
     (asserts! (> new-expiration current-block) ERR-INVALID-EXPIRATION)
-    
+
     (let
       (
         (ip-data (map-get? ip-registrations { ip-id: ip-id }))
@@ -175,11 +178,24 @@
           (unwrapped-ip-data (unwrap-panic ip-data))
         )
         (asserts! (is-eq tx-sender (get owner unwrapped-ip-data)) ERR-NOT-AUTHORIZED)
-        (map-set ip-registrations
-          { ip-id: ip-id }
-          (merge unwrapped-ip-data { expiration: (some new-expiration) })
+        (match (get expiration unwrapped-ip-data)
+          current-expiration (if (> new-expiration current-expiration)
+                                (begin
+                                  (map-set ip-registrations
+                                    { ip-id: ip-id }
+                                    (merge unwrapped-ip-data { expiration: (some new-expiration) })
+                                  )
+                                  (ok true)
+                                )
+                                ERR-INVALID-EXPIRATION)
+          (begin
+            (map-set ip-registrations
+              { ip-id: ip-id }
+              (merge unwrapped-ip-data { expiration: (some new-expiration) })
+            )
+            (ok true)
+          )
         )
-        (ok true)
       )
     )
   )
@@ -234,7 +250,7 @@
   )
 )
 
-;; New function to verify the current owner of a specific IP ID
+;; Function to verify the current owner of a specific IP ID
 (define-read-only (verify-ip-owner (ip-id uint))
   (let
     (
