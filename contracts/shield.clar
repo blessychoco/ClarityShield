@@ -1,4 +1,4 @@
-;; Smart Contract on Intellectual Property Protection with Expiration Date
+;; Smart Contract on Intellectual Property Protection with Expiration Date and Corrected Safety Checks
 ;; Define error codes
 (define-constant ERR-NOT-AUTHORIZED (err u1000))
 (define-constant ERR-INVALID-HASH-LENGTH (err u1001))
@@ -8,6 +8,7 @@
 (define-constant ERR-INVALID-IP-ID (err u1005))
 (define-constant ERR-IP-ID-OUT-OF-RANGE (err u1006))
 (define-constant ERR-IP-EXPIRED (err u1007))
+(define-constant ERR-INVALID-EXPIRATION (err u1008))
 
 ;; Define the contract
 (define-data-var owner principal tx-sender)
@@ -32,16 +33,23 @@
   (let
     (
       (new-id (+ (var-get ip-counter) u1))
+      (current-block block-height)
     )
     ;; Perform input validation
     (asserts! (is-eq (len ip-hash) u32) ERR-INVALID-HASH-LENGTH)
     (asserts! (not (is-eq ip-hash 0x0000000000000000000000000000000000000000000000000000000000000000)) ERR-HASH-ALL-ZEROS)
     (asserts! (is-none (map-get? registered-hashes { hash: ip-hash })) ERR-HASH-ALREADY-REGISTERED)
+    ;; Check expiration validity
+    (asserts! (match expiration-block
+                expiration (> expiration current-block)
+                true
+              )
+              ERR-INVALID-EXPIRATION)
     
     ;; Register the IP
     (map-set ip-registrations
       { ip-id: new-id }
-      { owner: tx-sender, timestamp: block-height, hash: ip-hash, expiration: expiration-block }
+      { owner: tx-sender, timestamp: current-block, hash: ip-hash, expiration: expiration-block }
     )
     ;; Track the registered hash
     (map-set registered-hashes
@@ -149,20 +157,30 @@
 (define-public (extend-ip-registration (ip-id uint) (new-expiration uint))
   (let
     (
-      (ip-data (map-get? ip-registrations { ip-id: ip-id }))
+      (current-ip-counter (var-get ip-counter))
+      (current-block block-height)
     )
-    (asserts! (is-some ip-data) ERR-IP-NOT-FOUND)
+    ;; Perform input validation
+    (asserts! (<= ip-id current-ip-counter) ERR-IP-ID-OUT-OF-RANGE)
+    (asserts! (> ip-id u0) ERR-INVALID-IP-ID)
+    (asserts! (> new-expiration current-block) ERR-INVALID-EXPIRATION)
+    
     (let
       (
-        (unwrapped-ip-data (unwrap-panic ip-data))
+        (ip-data (map-get? ip-registrations { ip-id: ip-id }))
       )
-      (asserts! (is-eq tx-sender (get owner unwrapped-ip-data)) ERR-NOT-AUTHORIZED)
-      (asserts! (> new-expiration block-height) ERR-INVALID-IP-ID)
-      (map-set ip-registrations
-        { ip-id: ip-id }
-        (merge unwrapped-ip-data { expiration: (some new-expiration) })
+      (asserts! (is-some ip-data) ERR-IP-NOT-FOUND)
+      (let
+        (
+          (unwrapped-ip-data (unwrap-panic ip-data))
+        )
+        (asserts! (is-eq tx-sender (get owner unwrapped-ip-data)) ERR-NOT-AUTHORIZED)
+        (map-set ip-registrations
+          { ip-id: ip-id }
+          (merge unwrapped-ip-data { expiration: (some new-expiration) })
+        )
+        (ok true)
       )
-      (ok true)
     )
   )
 )
